@@ -474,12 +474,31 @@ const view = {
   q: '',
   showDisabled: false,
   loading: false,
+  // Categorias (só para jogos com perfil em categorias.js, como o Grace)
+  perfil: null,
+  tags: new Map(),
+  cats: new Set(),
+  ents: new Set(),
+  catModo: 'ou',
 };
+
+function passaCategorias(b) {
+  if (!view.perfil || (!view.cats.size && !view.ents.size)) return true;
+  const tag = view.tags.get(b.id);
+  if (!tag) return false;
+  if (view.cats.size) {
+    const sel = [...view.cats];
+    const ok = view.catModo === 'e' ? sel.every((c) => tag.cats.has(c)) : sel.some((c) => tag.cats.has(c));
+    if (!ok) return false;
+  }
+  return !view.ents.size || [...view.ents].some((e) => tag.ents.has(e));
+}
 
 function visibleBadges() {
   let list = view.badges.filter((b) => view.showDisabled || b.enabled !== false);
   if (view.filter === 'tenho') list = list.filter((b) => isOwned(b.id));
   if (view.filter === 'faltam') list = list.filter((b) => !isOwned(b.id));
+  list = list.filter(passaCategorias);
   if (view.q) {
     const q = view.q.toLowerCase();
     list = list.filter((b) => `${b.displayName || b.name} ${b.displayDescription || b.description || ''}`.toLowerCase().includes(q));
@@ -523,6 +542,7 @@ function badgeCard(b, i) {
     </div>
     <h3 title="${esc(name)}">${esc(name)}</h3>
     <p class="badge-desc" title="${esc(desc)}">${esc(desc)}</p>
+    ${badgeTags(b)}
     <div class="badge-foot">
       <span class="tier tier-${tier.key}">${tier.label}</span>
       <span class="rate" title="Taxa de obtenção">${pctText}</span>
@@ -534,12 +554,66 @@ function badgeCard(b, i) {
   </article>`;
 }
 
+function badgeTags(b) {
+  const tag = view.perfil && view.tags.get(b.id);
+  if (!tag) return '';
+  const cats = view.perfil.categorias.filter((c) => tag.cats.has(c.id) && !c.subfiltro);
+  const ents = [...tag.ents].slice(0, 2);
+  return `<div class="badge-tags">${ents.map((e) => `<span class="btag ent">👁 ${esc(e)}</span>`).join('')}${cats
+    .map((c) => `<span class="btag" title="${esc(c.nome)}">${c.icone} ${esc(c.nome.split(' ')[0])}</span>`).join('')}</div>`;
+}
+
+function renderCatBar() {
+  const bar = $('#catBar');
+  if (!bar) return;
+  if (!view.perfil || !view.badges.length) { bar.hidden = true; return; }
+  const base = view.badges.filter((b) => view.showDisabled || b.enabled !== false);
+  const count = (fn) => base.filter((b) => { const t = view.tags.get(b.id); return t && fn(t); }).length;
+  const chips = view.perfil.categorias.map((c) => {
+    const n = count((t) => t.cats.has(c.id));
+    if (!n) return '';
+    return `<button type="button" class="cat-chip ${view.cats.has(c.id) ? 'on' : ''}" data-cat="${c.id}" aria-pressed="${view.cats.has(c.id)}">${c.icone} ${esc(c.nome)} <span>${n}</span></button>`;
+  }).join('');
+
+  let entRow = '';
+  const entCat = view.perfil.categorias.find((c) => c.subfiltro);
+  if (entCat && view.cats.has(entCat.id)) {
+    const ents = entCat.termos
+      .map((t) => ({ nome: t.nome, n: count((tag) => tag.ents.has(t.nome)) }))
+      .filter((e) => e.n)
+      .sort((a, b) => b.n - a.n || a.nome.localeCompare(b.nome));
+    entRow = `<div class="cat-row sub"><span class="cat-label">Entidade:</span>${ents
+      .map((e) => `<button type="button" class="cat-chip small ${view.ents.has(e.nome) ? 'on' : ''}" data-ent="${esc(e.nome)}" aria-pressed="${view.ents.has(e.nome)}">${esc(e.nome)} <span>${e.n}</span></button>`)
+      .join('')}</div>`;
+  }
+
+  const any = view.cats.size || view.ents.size;
+  bar.hidden = false;
+  bar.innerHTML = `
+    <div class="cat-row">
+      <span class="cat-label">Categorias de ${esc(view.perfil.nome)}:</span>
+      ${chips}
+      ${view.cats.size >= 2 ? `<div class="cat-mode" role="group" aria-label="Combinar categorias">
+        <button type="button" data-modo="ou" class="${view.catModo === 'ou' ? 'on' : ''}" title="Mostra conquistas de qualquer categoria marcada">Qualquer</button>
+        <button type="button" data-modo="e" class="${view.catModo === 'e' ? 'on' : ''}" title="Mostra só conquistas que estão em todas as categorias marcadas">Todas</button>
+      </div>` : ''}
+      ${any ? '<button type="button" class="cat-clear" data-clear>✕ Limpar filtros</button>' : ''}
+    </div>
+    ${entRow}`;
+}
+
+function classifyBadges(list) {
+  if (!view.perfil) return;
+  for (const b of list) view.tags.set(b.id, classificar(view.perfil, b));
+}
+
 function renderBadgeGrid() {
   const grid = $('#badgeGrid');
   if (!grid) return;
   const list = visibleBadges();
   if (!list.length && !view.loading) {
-    const msg = view.filter === 'tenho' ? ['🎯', 'Nenhuma marcada ainda', 'Toque em uma conquista para marcá-la como obtida.']
+    const msg = view.cats.size || view.ents.size ? ['🧩', 'Nada com esses filtros', 'Tente outra combinação de categorias ou clique em “Limpar filtros”.']
+      : view.filter === 'tenho' ? ['🎯', 'Nenhuma marcada ainda', 'Toque em uma conquista para marcá-la como obtida.']
       : view.filter === 'faltam' && view.badges.length ? ['🏆', 'Você tem todas!', 'Coleção completa neste jogo. Lendário.']
       : view.q ? ['🔍', 'Nada encontrado', 'Nenhuma conquista combina com essa busca.']
       : ['🫥', 'Este jogo não tem conquistas', 'O criador ainda não publicou nenhuma badge.'];
@@ -576,7 +650,7 @@ function persistGame() {
 }
 
 async function renderGame(uid, token) {
-  Object.assign(view, { uid, game: null, badges: [], icons: {}, scale: 1, q: '', loading: true, gameIcon: null });
+  Object.assign(view, { uid, game: null, badges: [], icons: {}, scale: 1, q: '', loading: true, gameIcon: null, perfil: null, tags: new Map(), cats: new Set(), ents: new Set(), catModo: 'ou' });
   const app = $('#app');
   app.innerHTML = `
     <section class="game-hero" id="gameHero">
@@ -626,6 +700,8 @@ async function renderGame(uid, token) {
       </div>
     </section>
 
+    <section class="cat-bar" id="catBar" hidden></section>
+
     <section class="badge-grid" id="badgeGrid">${'<div class="badge-card skeleton"></div>'.repeat(10)}</section>
   `;
 
@@ -639,6 +715,7 @@ async function renderGame(uid, token) {
     if (token !== routeToken) return;
     if (!game) throw new ApiError('Jogo não encontrado.', 404);
     view.game = game;
+    view.perfil = typeof perfilDoJogo === 'function' ? perfilDoJogo(game) : null;
     document.title = `${game.name} · SeeBaged`;
     $('#gameName').textContent = game.name;
     $('#gameMeta').innerHTML = `
@@ -663,11 +740,13 @@ async function renderGame(uid, token) {
       if (token !== routeToken) return;
       const data = page.data || [];
       view.badges.push(...data);
+      classifyBadges(data);
       // A API pode devolver taxa em fração (0–1) ou em porcentagem (0–100).
       if (view.badges.some((b) => (b.statistics?.winRatePercentage || 0) > 1)) view.scale = 100;
       cursor = page.nextPageCursor;
       pages++;
       view.loading = Boolean(cursor) && pages < 30;
+      renderCatBar();
       renderBadgeGrid();
       renderProgress();
       roblox.thumbs('badges', data.map((b) => b.id)).then((m) => {
@@ -717,6 +796,7 @@ function bindGameControls() {
   menu.addEventListener('click', (e) => e.stopPropagation());
   $('#showDisabled').addEventListener('change', (e) => {
     view.showDisabled = e.target.checked;
+    renderCatBar();
     renderBadgeGrid();
     renderProgress();
   });
@@ -728,6 +808,27 @@ function bindGameControls() {
     list.forEach((b) => setOwned(b.id, view.uid, act === 'all'));
     menu.hidden = true;
     afterOwnedChange();
+  });
+
+  $('#catBar').addEventListener('click', (e) => {
+    const t = e.target.closest('button');
+    if (!t) return;
+    if (t.dataset.cat) {
+      const id = t.dataset.cat;
+      view.cats.has(id) ? view.cats.delete(id) : view.cats.add(id);
+      const entCat = view.perfil.categorias.find((c) => c.subfiltro);
+      if (entCat && !view.cats.has(entCat.id)) view.ents.clear();
+    } else if (t.dataset.ent) {
+      const n = t.dataset.ent;
+      view.ents.has(n) ? view.ents.delete(n) : view.ents.add(n);
+    } else if (t.dataset.modo) {
+      view.catModo = t.dataset.modo;
+    } else if ('clear' in t.dataset) {
+      view.cats.clear();
+      view.ents.clear();
+    }
+    renderCatBar();
+    renderBadgeGrid();
   });
 
   $('#badgeGrid').addEventListener('click', (e) => {
