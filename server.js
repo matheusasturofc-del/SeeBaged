@@ -9,7 +9,7 @@ const path = require('path');
 
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = __dirname;
-const ALLOWED_SUBS = new Set(['badges', 'games', 'thumbnails', 'users', 'apis']);
+const ALLOWED_SUBS = new Set(['badges', 'games', 'thumbnails', 'users', 'apis', 'inventory']);
 const CACHE_TTL = 60 * 1000;
 const CACHE_MAX = 500;
 const cache = new Map();

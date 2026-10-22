@@ -77,7 +77,7 @@ function setOwned(id, universeId, value, at) {
 /* ---------- Acesso à API ---------- */
 
 class ApiError extends Error {
-  constructor(message, status) { super(message); this.status = status; }
+  constructor(message, status, detail) { super(message); this.status = status; this.detail = detail; }
 }
 
 const api = {
@@ -122,7 +122,10 @@ const api = {
       }
       if (!res.ok) {
         if (res.status === 429) throw new ApiError('O Roblox limitou as requisições. Espere alguns segundos e tente de novo.', 429);
-        throw new ApiError(`A API do Roblox respondeu com erro ${res.status}.`, res.status);
+        // O Roblox costuma explicar o erro em { errors: [{ code, message }] }
+        const info = await res.json().catch(() => null);
+        const detail = info?.errors?.[0]?.message || '';
+        throw new ApiError(`A API do Roblox respondeu com erro ${res.status}${detail ? `: ${detail}` : '.'}`, res.status, detail);
       }
       setConn('ok');
       return res.json();
@@ -201,6 +204,13 @@ const roblox = {
     try {
       const d = await api.request('thumbnails', `/v1/users/avatar-headshot?userIds=${userId}&size=48x48&format=Png&isCircular=true`);
       return (d.data || [])[0]?.imageUrl || null;
+    } catch { return null; }
+  },
+
+  async canViewInventory(userId) {
+    try {
+      const d = await api.request('inventory', `/v1/users/${userId}/can-view-inventory`);
+      return d.canView !== false;
     } catch { return null; }
   },
 
@@ -752,10 +762,38 @@ async function syncCurrent(silent = false) {
     afterOwnedChange();
     if (!silent || added) toast(added ? `✨ ${added} conquista(s) sincronizada(s) de @${store.settings.username}.` : `Tudo em dia com @${store.settings.username}.`, 'success');
   } catch (e) {
-    if (!silent) toast(e.message, 'error');
+    await handleSyncError(e, silent);
   } finally {
     btn?.classList.remove('loading');
   }
+}
+
+let privacyWarned = false;
+
+// 403 na sincronização quase sempre significa inventário privado no Roblox.
+async function handleSyncError(e, silent = false) {
+  if (e.status === 403) {
+    const canView = await roblox.canViewInventory(store.settings.userId);
+    if (canView !== true) {
+      if (silent && privacyWarned) return;
+      privacyWarned = true;
+      return openPrivacyModal();
+    }
+  }
+  if (!silent) toast(e.message, 'error');
+}
+
+function openPrivacyModal() {
+  const user = esc(store.settings.username || '');
+  modal.open('Seu inventário está privado 🔒', `
+    <p class="muted">O Roblox só mostra as conquistas de <b>@${user}</b> se o inventário estiver visível para todos. Por isso a sincronização foi bloqueada (erro 403).</p>
+    <ol class="steps">
+      <li>Abra as <a class="link" href="https://www.roblox.com/my/account#!/privacy" target="_blank" rel="noopener">configurações de privacidade do Roblox ↗</a> (⚙ Configurações → <b>Privacidade</b>).</li>
+      <li>Em <b>“Quem pode ver meu inventário?”</b>, escolha <b>Todos</b> e salve.</li>
+      <li>Volte aqui e clique em <b>⟳ Sincronizar com Roblox</b> de novo.</li>
+    </ol>
+    <p class="muted">Contas de menores de 13 anos podem ter essa opção travada — aí um responsável precisa liberar em <b>Controles parentais</b>. Enquanto isso, você pode marcar as conquistas manualmente clicando nelas.</p>
+    <div class="form-actions"><button class="btn btn-primary" type="button" data-close>Entendi</button></div>`);
 }
 
 /* ---------- Coleção ---------- */
@@ -835,8 +873,9 @@ async function syncAll() {
     }
     toast(added ? `✨ ${added} conquista(s) nova(s) sincronizada(s).` : 'Coleção já está em dia.', 'success');
   } catch (e) {
-    toast(e.message, 'error');
+    await handleSyncError(e);
   } finally {
+    btn?.classList.remove('loading');
     updateNavCount();
     if (location.hash.startsWith('#/colecao')) renderCollection();
   }

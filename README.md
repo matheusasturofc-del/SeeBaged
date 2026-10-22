@@ -5,7 +5,7 @@ Encontre as **conquistas (badges)** de qualquer jogo do Roblox e marque as que v
 - 🔎 **Busca de jogos** por nome, link (`roblox.com/games/...`) ou ID do place
 - 🏅 **Todas as conquistas** do jogo, com ícone, descrição, quantos jogadores ganharam e **dificuldade** (De graça → Impossível) calculada pela taxa de obtenção
 - ✅ **Marque o que você tem** com um clique — o progresso fica salvo no navegador
-- ⟳ **Sincronização com o Roblox**: digite seu nome de usuário e o site marca sozinho as conquistas que você já ganhou (só dados públicos, sem senha)
+- ⟳ **Sincronização com o Roblox**: digite seu nome de usuário e o site marca sozinho as conquistas que você já ganhou (só dados públicos, sem senha — o inventário precisa estar visível para **Todos** nas configurações de privacidade do Roblox)
 - 🎛️ Filtros (Todas / Tenho / Faltam), busca e ordenação (mais raras, mais comuns, mais novas…)
 - 🏆 **Minha coleção**: progresso de todos os jogos, estatísticas gerais e backup (exportar/importar JSON)
 - 📱 Funciona no celular
@@ -29,7 +29,7 @@ As APIs do Roblox não permitem chamadas diretas do navegador (CORS). O `server.
 /rbx/<subdomínio>/<caminho>  →  https://<subdomínio>.roblox.com/<caminho>
 ```
 
-Só os subdomínios `badges`, `games`, `thumbnails`, `users` e `apis` são liberados, e as respostas ficam em cache por 60 s para evitar limite de requisições.
+Só os subdomínios `badges`, `games`, `thumbnails`, `users`, `apis` e `inventory` são liberados, e as respostas ficam em cache por 60 s para evitar limite de requisições.
 
 ## Hospedar como site estático (GitHub Pages, Netlify…)
 
@@ -48,6 +48,7 @@ Sem o servidor local, o site tenta usar o [RoProxy](https://roproxy.com) automat
 | Conquistas do jogo | `badges.roblox.com/v1/universes/{id}/badges` |
 | Conquistas do usuário | `badges.roblox.com/v1/users/{id}/badges/awarded-dates` |
 | Usuário por nome | `users.roblox.com/v1/usernames/users` |
+| Inventário é público? | `inventory.roblox.com/v1/users/{id}/can-view-inventory` |
 | Ícones | `thumbnails.roblox.com/v1/...` |
 
 ## Estrutura

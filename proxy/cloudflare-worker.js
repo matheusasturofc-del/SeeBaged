@@ -3,7 +3,7 @@
 // use o modelo:  https://SEU-WORKER.workers.dev/{sub}
 //   https://SEU-WORKER.workers.dev/<sub>/<caminho>  ->  https://<sub>.roblox.com/<caminho>
 
-const ALLOWED_SUBS = new Set(['badges', 'games', 'thumbnails', 'users', 'apis']);
+const ALLOWED_SUBS = new Set(['badges', 'games', 'thumbnails', 'users', 'apis', 'inventory']);
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',

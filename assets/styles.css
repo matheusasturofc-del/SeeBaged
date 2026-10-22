@@ -320,6 +320,8 @@ select option { background: var(--bg-2); }
 .modal-card h4:first-child { margin-top: 0; }
 .muted { color: var(--muted); font-size: 14px; margin: 0 0 14px; }
 .form { display: flex; flex-direction: column; }
+.steps { margin: 0 0 16px; padding-left: 22px; display: grid; gap: 8px; font-size: 14.5px; }
+.steps li::marker { color: #c4b5fd; font-weight: 700; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .field span { font-size: 13px; font-weight: 600; color: var(--muted); }
 .field input { padding: 12px 14px; border-radius: 12px; background: rgba(0, 0, 0, .35); border: 1px solid var(--border-2); outline: none; transition: .2s; }
