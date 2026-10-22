@@ -102,14 +102,22 @@ const api = {
     return base.replace(/\/$/, '') + path;
   },
 
-  async request(sub, path, { method = 'GET', body } = {}) {
+  // A chave do Open Cloud só pode ir para o nosso próprio proxy, nunca para um serviço de terceiros.
+  canUseKey() {
+    return this.mode === 'local' || this.mode === 'custom';
+  },
+
+  async request(sub, path, { method = 'GET', body, apiKey } = {}) {
     const url = this.url(sub, path);
+    const headers = {};
+    if (body) headers['Content-Type'] = 'application/json';
+    if (apiKey) headers['x-api-key'] = apiKey;
     for (let attempt = 0; ; attempt++) {
       let res;
       try {
         res = await fetch(url, {
           method,
-          headers: body ? { 'Content-Type': 'application/json' } : undefined,
+          headers,
           body: body ? JSON.stringify(body) : undefined,
         });
       } catch {
@@ -207,11 +215,30 @@ const roblox = {
     } catch { return null; }
   },
 
-  async canViewInventory(userId) {
-    try {
-      const d = await api.request('inventory', `/v1/users/${userId}/can-view-inventory`);
-      return d.canView !== false;
-    } catch { return null; }
+  // Open Cloud (oficial): lê o inventário do usuário com uma chave de API.
+  async inventoryBadges(userId, badgeIds, apiKey) {
+    const out = [];
+    for (const part of chunk(badgeIds, 100)) {
+      let token = '';
+      do {
+        const filter = encodeURIComponent(`badgeIds=${part.join(',')}`);
+        const page = token ? `&pageToken=${encodeURIComponent(token)}` : '';
+        const d = await api.request('apis', `/cloud/v2/users/${userId}/inventory-items?maxPageSize=100&filter=${filter}${page}`, { apiKey });
+        const items = d.inventoryItems || [];
+        for (const it of items) {
+          if (it.badgeDetails?.badgeId) out.push({ badgeId: Number(it.badgeDetails.badgeId), awardedDate: null });
+        }
+        token = items.length ? d.nextPageToken : '';
+      } while (token);
+    }
+    return out;
+  },
+
+  // Usa a chave quando houver; sem ela, tenta o endpoint antigo (o Roblox o bloqueou para chamadas anônimas em 2026).
+  ownedBadges(userId, badgeIds) {
+    const key = store.settings.apiKey;
+    if (key && api.canUseKey()) return roblox.inventoryBadges(userId, badgeIds, key);
+    return roblox.awarded(userId, badgeIds);
   },
 
   async awarded(userId, badgeIds) {
@@ -753,7 +780,7 @@ async function syncCurrent(silent = false) {
   if (!ids.length || !store.settings.userId) return;
   btn?.classList.add('loading');
   try {
-    const got = await roblox.awarded(store.settings.userId, ids);
+    const got = await roblox.ownedBadges(store.settings.userId, ids);
     let added = 0;
     for (const a of got) {
       if (!isOwned(a.badgeId)) added++;
@@ -768,32 +795,68 @@ async function syncCurrent(silent = false) {
   }
 }
 
-let privacyWarned = false;
+let keyPromptShown = false;
 
-// 403 na sincronização quase sempre significa inventário privado no Roblox.
 async function handleSyncError(e, silent = false) {
-  if (e.status === 403) {
-    const canView = await roblox.canViewInventory(store.settings.userId);
-    if (canView !== true) {
-      if (silent && privacyWarned) return;
-      privacyWarned = true;
-      return openPrivacyModal();
-    }
+  const usingKey = Boolean(store.settings.apiKey && api.canUseKey());
+  if (!usingKey && (e.status === 401 || e.status === 403)) {
+    // Sem chave, o Roblox não libera mais as conquistas do usuário.
+    if (silent && keyPromptShown) return;
+    keyPromptShown = true;
+    return openKeyModal();
+  }
+  if (usingKey && e.status === 401) {
+    if (!silent) openKeyModal('A chave salva foi recusada pelo Roblox (erro 401). Ela pode ter expirado ou sido copiada errada — gere outra e cole aqui.');
+    return;
+  }
+  if (usingKey && e.status === 403) {
+    if (!silent) toast('O Roblox negou acesso ao inventário (403). Deixe o inventário visível para “Todos” ou adicione a permissão Inventory → Read na chave.', 'error');
+    return;
   }
   if (!silent) toast(e.message, 'error');
 }
 
-function openPrivacyModal() {
-  const user = esc(store.settings.username || '');
-  modal.open('Seu inventário está privado 🔒', `
-    <p class="muted">O Roblox só mostra as conquistas de <b>@${user}</b> se o inventário estiver visível para todos. Por isso a sincronização foi bloqueada (erro 403).</p>
+function openKeyModal(problem = '') {
+  const s = store.settings;
+  const user = esc(s.username || 'sua conta');
+  const blocked = !api.canUseKey();
+  modal.open('Ler conquistas direto da sua conta 🔑', `
+    ${problem ? `<p class="notice">${esc(problem)}</p>` : ''}
+    <p class="muted">Em 2026 o Roblox fechou o acesso público às conquistas dos jogadores. O jeito oficial agora é uma <b>chave de API</b> criada na sua conta — é grátis e leva 1 minuto. Depois disso, o site lê as conquistas de <b>@${user}</b> sozinho.</p>
     <ol class="steps">
-      <li>Abra as <a class="link" href="https://www.roblox.com/my/account#!/privacy" target="_blank" rel="noopener">configurações de privacidade do Roblox ↗</a> (⚙ Configurações → <b>Privacidade</b>).</li>
-      <li>Em <b>“Quem pode ver meu inventário?”</b>, escolha <b>Todos</b> e salve.</li>
-      <li>Volte aqui e clique em <b>⟳ Sincronizar com Roblox</b> de novo.</li>
+      <li>Abra a página de <a class="link" href="https://create.roblox.com/dashboard/credentials?activeTab=ApiKeysTab" target="_blank" rel="noopener">Chaves de API do Roblox ↗</a> (logado na sua conta).</li>
+      <li>Clique em <b>Criar chave de API</b> (<i>Create API Key</i>) e dê o nome <b>SeeBaged</b>.</li>
+      <li>Em <b>Permissões de acesso</b>, no menu <b>Selecionar sistema de API</b>, escolha <b>inventory-item</b> (Inventário) e marque a operação <b>read</b>.</li>
+      <li>Em <b>Segurança</b>, deixe <b>Restringir endereços IP</b> desligado.</li>
+      <li>Clique em <b>Salvar e gerar chave</b>, depois em <b>Copiar</b> e cole abaixo.</li>
     </ol>
-    <p class="muted">Contas de menores de 13 anos podem ter essa opção travada — aí um responsável precisa liberar em <b>Controles parentais</b>. Enquanto isso, você pode marcar as conquistas manualmente clicando nelas.</p>
-    <div class="form-actions"><button class="btn btn-primary" type="button" data-close>Entendi</button></div>`);
+    ${blocked ? `<p class="notice">Para usar a chave, abra o site pelo servidor local (<code>node server.js</code> → <code>http://localhost:3000</code>). Por segurança, ela nunca é enviada para proxies de terceiros.</p>` : ''}
+    <form id="keyForm" class="form">
+      <label class="field"><span>Chave de API</span>
+        <input id="keyInput" type="password" required minlength="20" placeholder="Cole a chave aqui" value="${esc(s.apiKey || '')}" autocomplete="off" spellcheck="false">
+        <small>Trate como uma senha: não mostre para ninguém. Ela fica salva só neste navegador e só é enviada ao Roblox.</small>
+      </label>
+      <div class="form-actions">
+        ${s.apiKey ? '<button class="btn btn-ghost danger" type="button" id="keyRemove">Remover chave</button>' : ''}
+        <button class="btn btn-primary" type="submit">Salvar e sincronizar</button>
+      </div>
+    </form>`, (root) => {
+    $('#keyRemove', root)?.addEventListener('click', () => {
+      delete s.apiKey;
+      saveStore();
+      modal.close();
+      toast('Chave removida.');
+    });
+    $('#keyForm', root).addEventListener('submit', (e) => {
+      e.preventDefault();
+      s.apiKey = $('#keyInput', root).value.trim();
+      saveStore();
+      modal.close();
+      toast('Chave salva! Sincronizando…', 'success');
+      if (location.hash.startsWith('#/colecao')) syncAll();
+      else if (view.uid && location.hash.startsWith('#/jogo')) syncCurrent();
+    });
+  });
 }
 
 /* ---------- Coleção ---------- */
@@ -865,7 +928,7 @@ async function syncAll() {
   try {
     for (const g of Object.values(store.games)) {
       if (!g.ids?.length) continue;
-      const got = await roblox.awarded(store.settings.userId, g.ids);
+      const got = await roblox.ownedBadges(store.settings.userId, g.ids);
       for (const a of got) {
         if (!isOwned(a.badgeId)) added++;
         setOwned(a.badgeId, g.id, true, Date.parse(a.awardedDate) || Date.now());
@@ -948,6 +1011,10 @@ function openSettings() {
       </label>
       <div class="form-actions"><button class="btn" type="button" id="saveProxy">Salvar conexão</button></div>
 
+      <h4>Chave de API do Roblox</h4>
+      <p class="muted">Necessária para o site ler sozinho as conquistas da sua conta. ${s.apiKey ? '<b>✓ Chave configurada.</b>' : 'Nenhuma chave salva.'}</p>
+      <div class="form-actions left"><button class="btn" type="button" id="openKey">🔑 ${s.apiKey ? 'Trocar chave' : 'Configurar chave'}</button></div>
+
       <h4>Backup das marcações</h4>
       <p class="muted">Seus dados ficam salvos neste navegador. Exporte para levar a outro dispositivo.</p>
       <div class="form-actions left">
@@ -956,6 +1023,7 @@ function openSettings() {
         <button class="btn btn-ghost danger" type="button" id="wipeBtn">Apagar tudo</button>
       </div>
     </div>`, (root) => {
+    $('#openKey', root).addEventListener('click', () => openKeyModal());
     $('#saveProxy', root).addEventListener('click', async () => {
       s.proxy = $('#proxyInput', root).value.trim();
       saveStore();

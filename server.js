@@ -9,7 +9,7 @@ const path = require('path');
 
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = __dirname;
-const ALLOWED_SUBS = new Set(['badges', 'games', 'thumbnails', 'users', 'apis', 'inventory']);
+const ALLOWED_SUBS = new Set(['badges', 'games', 'thumbnails', 'users', 'apis']);
 const CACHE_TTL = 60 * 1000;
 const CACHE_MAX = 500;
 const cache = new Map();
@@ -28,7 +28,7 @@ const MIME = {
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, x-api-key',
 };
 
 function send(res, status, body, headers = {}) {
@@ -57,7 +57,9 @@ async function proxy(req, res, url) {
   if (req.method !== 'GET' && req.method !== 'POST') return send(res, 405, '');
 
   const target = `https://${sub}.roblox.com/${rest.join('/')}${url.search}`;
-  const key = req.method === 'GET' ? target : null;
+  // A chave do Open Cloud só segue para as rotas /cloud/ do apis.roblox.com, e essas respostas não vão para o cache.
+  const apiKey = sub === 'apis' && rest[0] === 'cloud' ? req.headers['x-api-key'] : undefined;
+  const key = req.method === 'GET' && !apiKey ? target : null;
   const hit = key && cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_TTL) {
     return send(res, hit.status, hit.body, { 'Content-Type': hit.type, 'X-Cache': 'HIT' });
@@ -71,6 +73,7 @@ async function proxy(req, res, url) {
         Accept: 'application/json',
         'Content-Type': 'application/json',
         'User-Agent': 'SeeBaged/1.0 (+https://github.com/matheusasturofc-del/SeeBaged)',
+        ...(apiKey ? { 'x-api-key': apiKey } : {}),
       },
       body,
     });

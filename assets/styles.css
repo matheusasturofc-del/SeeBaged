@@ -322,6 +322,7 @@ select option { background: var(--bg-2); }
 .form { display: flex; flex-direction: column; }
 .steps { margin: 0 0 16px; padding-left: 22px; display: grid; gap: 8px; font-size: 14.5px; }
 .steps li::marker { color: #c4b5fd; font-weight: 700; }
+.notice { margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; font-size: 14px; background: rgba(251, 191, 36, .1); border: 1px solid rgba(251, 191, 36, .35); color: #fde68a; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .field span { font-size: 13px; font-weight: 600; color: var(--muted); }
 .field input { padding: 12px 14px; border-radius: 12px; background: rgba(0, 0, 0, .35); border: 1px solid var(--border-2); outline: none; transition: .2s; }
