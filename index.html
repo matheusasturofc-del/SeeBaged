@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SeeBaged · Conquistas do Roblox</title>
+  <meta name="description" content="Encontre as conquistas (badges) de qualquer jogo do Roblox e marque as que você já tem.">
+  <meta name="theme-color" content="#07070f">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+
+  <header class="topbar">
+    <a class="brand" href="#/" aria-label="SeeBaged — início">
+      <img src="assets/icon.svg" alt="" width="34" height="34">
+      <span>See<b>Baged</b></span>
+    </a>
+    <nav class="nav">
+      <a href="#/" data-nav="home">Explorar</a>
+      <a href="#/colecao" data-nav="colecao">Minha coleção <span class="nav-count" id="navCount">0</span></a>
+    </nav>
+    <div class="top-actions">
+      <button class="user-chip" id="userChip" type="button" title="Conectar usuário do Roblox">
+        <span class="avatar" id="userAvatar">?</span>
+        <span id="userName">Conectar Roblox</span>
+      </button>
+      <button class="icon-btn" id="settingsBtn" type="button" aria-label="Configurações" title="Configurações">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="app" tabindex="-1"></main>
+
+  <footer class="footer">
+    <span>SeeBaged não é afiliado à Roblox Corporation. Dados das APIs públicas do Roblox.</span>
+    <span class="conn" id="connStatus"><i></i><b>conectando…</b></span>
+  </footer>
+
+  <!-- Modal genérico -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button class="icon-btn modal-x" type="button" data-close aria-label="Fechar">✕</button>
+      <h2 id="modalTitle"></h2>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>
