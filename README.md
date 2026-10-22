@@ -42,12 +42,21 @@ Desde 2026 o Roblox não libera mais as conquistas de um jogador para chamadas a
 
 A chave fica só no seu navegador e só é repassada ao `apis.roblox.com` pelo servidor local — nunca a um proxy de terceiros. Se o inventário estiver visível para **Todos**, qualquer chave funciona; se for privado, a chave precisa ser da própria conta com a permissão de leitura de inventário.
 
-## Hospedar como site estático (GitHub Pages, Netlify…)
+## Publicar no GitHub Pages
 
-Sem o servidor local, o site tenta usar o [RoProxy](https://roproxy.com) automaticamente. Se ele não funcionar, publique seu próprio proxy gratuito:
+O site é 100% estático, então roda no GitHub Pages: **https://matheusasturofc-del.github.io/SeeBaged/**
 
-1. Crie um Worker na [Cloudflare](https://workers.cloudflare.com) com o conteúdo de [`proxy/cloudflare-worker.js`](proxy/cloudflare-worker.js).
-2. No site, abra **⚙ Configurações** e preencha o proxy com `https://SEU-WORKER.workers.dev/{sub}`.
+1. Em **Settings → Pages**, escolha **Deploy from a branch**, a branch do site e a pasta **/ (root)**, e clique em **Save**.
+2. Como lá não existe o `server.js`, o site precisa de um proxy online para falar com o Roblox. Crie um grátis na Cloudflare:
+   1. Entre em [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages** → **Create** → **Start with Hello World** → dê o nome `seebaged-proxy` → **Deploy**.
+   2. Clique em **Edit code**, apague tudo, cole o conteúdo de [`proxy/cloudflare-worker.js`](proxy/cloudflare-worker.js) e clique em **Deploy**.
+   3. Copie o endereço do Worker (algo como `https://seebaged-proxy.SEU-NOME.workers.dev`).
+3. Coloque o endereço em [`assets/config.js`](assets/config.js), terminando com `/{sub}`:
+   ```js
+   proxy: 'https://seebaged-proxy.SEU-NOME.workers.dev/{sub}',
+   ```
+
+Sem o Worker, o site tenta o [RoProxy](https://roproxy.com) (serviço de terceiros, pode não funcionar) e a sincronização com chave fica desligada, porque a chave nunca é enviada a terceiros. O Worker só aceita chamadas do `matheusasturofc-del.github.io` e do `localhost` (lista `ALLOWED_ORIGINS` no arquivo).
 
 ## APIs usadas
 
@@ -66,6 +75,7 @@ Sem o servidor local, o site tenta usar o [RoProxy](https://roproxy.com) automat
 ```
 index.html                 página única
 assets/app.js              lógica (busca, conquistas, marcações, sincronização)
+assets/config.js           endereço do proxy quando hospedado (GitHub Pages)
 assets/styles.css          visual
 assets/icon.svg            logo
 server.js                  servidor local + proxy da API

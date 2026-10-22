@@ -87,6 +87,8 @@ const api = {
   async init() {
     const custom = (store.settings.proxy || '').trim();
     if (custom) { this.base = custom; this.mode = 'custom'; return; }
+    const hosted = (window.SEEBAGED_CONFIG?.proxy || '').trim();
+    if (hosted) { this.base = hosted; this.mode = 'worker'; return; }
     if (location.protocol.startsWith('http')) {
       try {
         const r = await fetch('rbx/ping', { cache: 'no-store' });
@@ -104,7 +106,7 @@ const api = {
 
   // A chave do Open Cloud só pode ir para o nosso próprio proxy, nunca para um serviço de terceiros.
   canUseKey() {
-    return this.mode === 'local' || this.mode === 'custom';
+    return this.mode === 'local' || this.mode === 'custom' || this.mode === 'worker';
   },
 
   async request(sub, path, { method = 'GET', body, apiKey } = {}) {
@@ -268,7 +270,7 @@ function toast(msg, type = 'info') {
 
 function setConn(state) {
   const el = $('#connStatus');
-  const labels = { local: 'servidor local', roproxy: 'via RoProxy', custom: 'proxy personalizado' };
+  const labels = { local: 'servidor local', roproxy: 'via RoProxy', custom: 'proxy personalizado', worker: 'proxy do site' };
   el.dataset.state = state;
   $('b', el).textContent = state === 'erro' ? 'sem conexão com o Roblox' : `API ${labels[api.mode] || ''}`;
 }
@@ -830,7 +832,7 @@ function openKeyModal(problem = '') {
       <li>Em <b>Segurança</b>, deixe <b>Restringir endereços IP</b> desligado.</li>
       <li>Clique em <b>Salvar e gerar chave</b>, depois em <b>Copiar</b> e cole abaixo.</li>
     </ol>
-    ${blocked ? `<p class="notice">Para usar a chave, abra o site pelo servidor local (<code>node server.js</code> → <code>http://localhost:3000</code>). Por segurança, ela nunca é enviada para proxies de terceiros.</p>` : ''}
+    ${blocked ? `<p class="notice">Agora o site está usando o RoProxy, um serviço de terceiros, e por segurança a chave nunca é enviada para ele. Para sincronizar, o site precisa do proxy próprio (Cloudflare Worker, veja o README) ou do servidor local (<code>node server.js</code>).</p>` : ''}
     <form id="keyForm" class="form">
       <label class="field"><span>Chave de API</span>
         <input id="keyInput" type="password" required minlength="20" placeholder="Cole a chave aqui" value="${esc(s.apiKey || '')}" autocomplete="off" spellcheck="false">
