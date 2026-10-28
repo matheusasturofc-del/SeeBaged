@@ -7,7 +7,7 @@ Encontre as **conquistas (badges)** de qualquer jogo do Roblox e marque as que v
 - ✅ **Marque o que você tem** com um clique — o progresso fica salvo no navegador
 - ⟳ **Sincronização com o Roblox**: digite seu nome de usuário e o site marca sozinho as conquistas que você já ganhou (veja abaixo como criar a chave de API)
 - 🎛️ Filtros (Todas / Tenho / Faltam), busca e ordenação (mais raras, mais comuns, mais novas…)
-- 🧩 **Categorias no Grace**: Entidades (com filtro por entidade), Modificadores, Saferooms e progresso, Modos de jogo, Eventos e Segredos — dá para marcar várias ao mesmo tempo e escolher se a conquista precisa estar em **qualquer** uma ou em **todas**. As regras ficam em `assets/categorias.js`, com nomes tirados da [Grace Wiki](https://grace.miraheze.org/wiki/Badges)
+- 🧩 **Categorias no Grace**: Entidades (com filtro por entidade), Modificadores, Goobers (Goober Clicker), Saferooms e progresso, Modos de jogo, Eventos e Segredos — dá para marcar várias ao mesmo tempo e escolher se a conquista precisa estar em **qualquer** uma ou em **todas**. As regras ficam em `assets/categorias.js`, com nomes tirados da [Grace Wiki](https://grace.miraheze.org/wiki/Badges)
 - 🏆 **Minha coleção**: progresso de todos os jogos, estatísticas gerais e backup (exportar/importar JSON)
 - 📱 Funciona no celular
 

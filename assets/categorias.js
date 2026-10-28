@@ -31,6 +31,9 @@ const GRACE_MODOS = [
   { nome: 'rOT', exato: true }, { nome: 'RETRO', exato: true },
 ];
 
+// Goober Clicker (minijogo do menu): rebirths/"regoob", quantidade de Goobers e cliques.
+const GRACE_GOOBER = /goob|zloober|rebirth/i;
+
 const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const termo = (t) => (t.re ||= t.padrao || new RegExp(`(^|[^\\p{L}\\p{N}])${escRe(t.nome)}(?=$|[^\\p{L}\\p{N}])`, t.exato ? 'u' : 'iu'));
 
@@ -49,7 +52,13 @@ const GRACE = {
       ],
     },
     {
+      id: 'goobers', icone: '🥜', nome: 'Goobers',
+      termos: [{ nome: 'goober', padrao: GRACE_GOOBER }],
+    },
+    {
       id: 'progresso', icone: '🚪', nome: 'Saferooms e progresso',
+      // "Reach 1 000 000 Goobers" é do Goober Clicker, não da partida.
+      exceto: GRACE_GOOBER,
       termos: [{ nome: 'progresso', padrao: /safe ?rooms?|\breach\b|\btimers?\b|\bfloors?\b|\blevel\b|\bxp\b|\bescape\b|\bwins?\b|\bwithout dying\b|\bin under\b/i }],
     },
     { id: 'modos', icone: '🎮', nome: 'Modos de jogo', termos: [...GRACE_MODOS, { nome: 'gamemode', padrao: /game ?mode/i }] },
@@ -75,7 +84,7 @@ function classificar(perfil, badge) {
   const ents = new Set();
   if (!cats.size) {
     for (const c of perfil.categorias) {
-      if (c.resto) continue;
+      if (c.resto || c.exceto?.test(texto)) continue;
       for (const t of c.termos) {
         if (!termo(t).test(texto)) continue;
         cats.add(c.id);
